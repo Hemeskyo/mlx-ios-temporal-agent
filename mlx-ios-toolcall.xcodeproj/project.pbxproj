@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8A89586E3042D0C1004CCC49 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8A89586D3042D0C1004CCC49 /* MLXLLM */; };
+		8A8958703042D0C1004CCC49 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 8A89586F3042D0C1004CCC49 /* MLXLMCommon */; };
+		8A8958723042D53F004CCC49 /* MLXHuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = 8A8958713042D53F004CCC49 /* MLXHuggingFace */; };
+		8AF4ECC73042DAEA00A23BCF /* Hub in Frameworks */ = {isa = PBXBuildFile; productRef = 8AF4ECC63042DAEA00A23BCF /* Hub */; };
+		8AF4ECC93042DAEA00A23BCF /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 8AF4ECC83042DAEA00A23BCF /* Tokenizers */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		8A0D089F30423A6B0093B774 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +60,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A8958703042D0C1004CCC49 /* MLXLMCommon in Frameworks */,
+				8A89586E3042D0C1004CCC49 /* MLXLLM in Frameworks */,
+				8AF4ECC73042DAEA00A23BCF /* Hub in Frameworks */,
+				8A8958723042D53F004CCC49 /* MLXHuggingFace in Frameworks */,
+				8AF4ECC93042DAEA00A23BCF /* Tokenizers in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +91,7 @@
 				8A0D089330423A690093B774 /* mlx-ios-toolcall */,
 				8A0D08A130423A6B0093B774 /* mlx-ios-toolcallTests */,
 				8A0D08AB30423A6B0093B774 /* mlx-ios-toolcallUITests */,
+				8A89585A30423EA1004CCC49 /* Frameworks */,
 				8A0D089230423A690093B774 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +104,13 @@
 				8A0D08A830423A6B0093B774 /* mlx-ios-toolcallUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8A89585A30423EA1004CCC49 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +133,11 @@
 			);
 			name = "mlx-ios-toolcall";
 			packageProductDependencies = (
+				8A89586D3042D0C1004CCC49 /* MLXLLM */,
+				8A89586F3042D0C1004CCC49 /* MLXLMCommon */,
+				8A8958713042D53F004CCC49 /* MLXHuggingFace */,
+				8AF4ECC63042DAEA00A23BCF /* Hub */,
+				8AF4ECC83042DAEA00A23BCF /* Tokenizers */,
 			);
 			productName = "mlx-ios-toolcall";
 			productReference = 8A0D089130423A690093B774 /* mlx-ios-toolcall.app */;
@@ -195,6 +221,10 @@
 			);
 			mainGroup = 8A0D088830423A690093B774;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				8AF4ECC53042DAEA00A23BCF /* XCRemoteSwiftPackageReference "swift-transformers" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8A0D089230423A690093B774 /* Products */;
 			projectDirPath = "";
@@ -400,6 +430,8 @@
 				DEVELOPMENT_TEAM = 6UWA5X9ANL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Used to schedule calendar events you ask for.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Used to create reminders you ask for.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -432,6 +464,8 @@
 				DEVELOPMENT_TEAM = 6UWA5X9ANL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Used to schedule calendar events you ask for.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Used to create reminders you ask for.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -578,6 +612,53 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.31.4;
+			};
+		};
+		8AF4ECC53042DAEA00A23BCF /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8A89586D3042D0C1004CCC49 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
+		8A89586F3042D0C1004CCC49 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		8A8958713042D53F004CCC49 /* MLXHuggingFace */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXHuggingFace;
+		};
+		8AF4ECC63042DAEA00A23BCF /* Hub */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8AF4ECC53042DAEA00A23BCF /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Hub;
+		};
+		8AF4ECC83042DAEA00A23BCF /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8AF4ECC53042DAEA00A23BCF /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Tokenizers;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8A0D088930423A690093B774 /* Project object */;
 }

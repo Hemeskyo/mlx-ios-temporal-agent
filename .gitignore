@@ -1,0 +1,18 @@
+# Xcode
+build/
+DerivedData/
+*.hmap
+*.xccache/
+*.xcuserstate
+
+# User-specific Xcode data (but keep shared data like Package.resolved)
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# macOS
+.DS_Store
