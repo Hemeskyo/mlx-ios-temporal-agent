@@ -55,7 +55,8 @@ enum AppleEvents {
     }
 
     /// Parses "HH:mm" into today's date at that time.
-    private static func date(from time: String) -> Date? {
+    private static func date(from time: String) -> Date?
+    {
         let parts = time.split(separator: ":").compactMap { Int($0) }
         guard parts.count == 2 else { return nil }
         return Calendar.current.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: Date())
