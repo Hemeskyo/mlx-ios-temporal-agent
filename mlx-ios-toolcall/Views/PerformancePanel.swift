@@ -74,7 +74,6 @@ struct PerformancePanel: View {
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.06)))
-        .padding(.horizontal)
     }
 
     private var yMax: Double {

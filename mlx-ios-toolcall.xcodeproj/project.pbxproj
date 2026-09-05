@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8A2E63F9304B422E0039E10E /* TimesFMMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 8A2E63F8304B422E0039E10E /* TimesFMMLX */; };
 		8A89586E3042D0C1004CCC49 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8A89586D3042D0C1004CCC49 /* MLXLLM */; };
 		8A8958703042D0C1004CCC49 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 8A89586F3042D0C1004CCC49 /* MLXLMCommon */; };
 		8A8958723042D53F004CCC49 /* MLXHuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = 8A8958713042D53F004CCC49 /* MLXHuggingFace */; };
@@ -38,7 +39,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8A0D089330423A690093B774 /* mlx-ios-toolcall */ = {
+		8A018830304AD24B006D64A4 /* mlx-ios-toolcall */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "mlx-ios-toolcall";
 			sourceTree = "<group>";
@@ -60,6 +61,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A2E63F9304B422E0039E10E /* TimesFMMLX in Frameworks */,
 				8A8958703042D0C1004CCC49 /* MLXLMCommon in Frameworks */,
 				8A89586E3042D0C1004CCC49 /* MLXLLM in Frameworks */,
 				8AF4ECC73042DAEA00A23BCF /* Hub in Frameworks */,
@@ -88,11 +90,11 @@
 		8A0D088830423A690093B774 = {
 			isa = PBXGroup;
 			children = (
-				8A0D089330423A690093B774 /* mlx-ios-toolcall */,
 				8A0D08A130423A6B0093B774 /* mlx-ios-toolcallTests */,
 				8A0D08AB30423A6B0093B774 /* mlx-ios-toolcallUITests */,
 				8A89585A30423EA1004CCC49 /* Frameworks */,
 				8A0D089230423A690093B774 /* Products */,
+				8A018830304AD24B006D64A4 /* mlx-ios-toolcall */,
 			);
 			sourceTree = "<group>";
 		};
@@ -129,7 +131,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				8A0D089330423A690093B774 /* mlx-ios-toolcall */,
+				8A018830304AD24B006D64A4 /* mlx-ios-toolcall */,
 			);
 			name = "mlx-ios-toolcall";
 			packageProductDependencies = (
@@ -138,6 +140,7 @@
 				8A8958713042D53F004CCC49 /* MLXHuggingFace */,
 				8AF4ECC63042DAEA00A23BCF /* Hub */,
 				8AF4ECC83042DAEA00A23BCF /* Tokenizers */,
+				8A2E63F8304B422E0039E10E /* TimesFMMLX */,
 			);
 			productName = "mlx-ios-toolcall";
 			productReference = 8A0D089130423A690093B774 /* mlx-ios-toolcall.app */;
@@ -224,6 +227,7 @@
 			packageReferences = (
 				8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				8AF4ECC53042DAEA00A23BCF /* XCRemoteSwiftPackageReference "swift-transformers" */,
+				8A2E63F7304B422E0039E10E /* XCRemoteSwiftPackageReference "TimesFM-3-MLX-Swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8A0D089230423A690093B774 /* Products */;
@@ -425,12 +429,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "mlx-ios-toolcall/mlx-ios-toolcall.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6UWA5X9ANL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Temporal;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Used to schedule calendar events you ask for.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Temporal reads your Health metrics on-device to forecast them.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Temporal reads your Health metrics on-device to forecast them.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Temporal reads photo timestamps on-device to forecast your activity.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Used to create reminders you ask for.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -441,8 +451,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.22One.mlx-ios-toolcall";
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.msa.temporal;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -459,12 +469,18 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "mlx-ios-toolcall/mlx-ios-toolcall.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6UWA5X9ANL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Temporal;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Used to schedule calendar events you ask for.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Temporal reads your Health metrics on-device to forecast them.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Temporal reads your Health metrics on-device to forecast them.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Temporal reads photo timestamps on-device to forecast your activity.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Used to create reminders you ask for.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -475,8 +491,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.22One.mlx-ios-toolcall";
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.msa.temporal;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -614,6 +630,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		8A2E63F7304B422E0039E10E /* XCRemoteSwiftPackageReference "TimesFM-3-MLX-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Hemeskyo/TimesFM-3-MLX-Swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
@@ -633,6 +657,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		8A2E63F8304B422E0039E10E /* TimesFMMLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A2E63F7304B422E0039E10E /* XCRemoteSwiftPackageReference "TimesFM-3-MLX-Swift" */;
+			productName = TimesFMMLX;
+		};
 		8A89586D3042D0C1004CCC49 /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8A89586C3042D0C1004CCC49 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;

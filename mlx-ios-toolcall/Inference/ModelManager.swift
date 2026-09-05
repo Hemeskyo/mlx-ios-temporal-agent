@@ -30,15 +30,24 @@ final class ModelManager {
 
     /// Routes the model: call a tool only when it fits, otherwise answer in chat.
     static let systemPrompt = """
-        You are a helpful on-device assistant with tools (reminders, calendar, \
-        messages, timers, maps). Call a tool ONLY when the request clearly maps to one. \
-        For anything else — questions, math, casual chat — answer directly in plain text. \
-        Never invent tools.
+        You are a helpful on-device assistant. Your ONLY tools are: create_reminder, \
+        schedule_calendar_event, send_message, start_timer, open_maps, forecast, and forecast_web. \
+        There is NO general web search or browser — do not invent one. \
+        Call `forecast` for the user's own on-device metrics (steps, active energy, distance, photos). \
+        Call `forecast_web` to predict public interest in a topic via its Wikipedia pageviews \
+        (the `topic` is a Wikipedia article title, e.g. "ChatGPT"). \
+        Call a tool ONLY when the request clearly maps to one. For general knowledge, facts, math, \
+        or casual chat, answer directly from your own knowledge in plain text. Never invent tools.
         """
 
 
     private(set) var state: State = .idle
     private(set) var lastMetrics: Metrics?
+    var timesFM: TimesFMManager?
+
+    static let modelId = "Hskyto/lfm2.5-2.6b-toolcall-mlx-q4"
+    /// True when the LFM2 weights are already on disk (so we can skip the download prompt).
+    private(set) var hasCachedWeights = ModelManager.cachedWeightsExist()
 
     // MARK: Sampling parameters (bound to the Settings sheet)
     var temperature: Float = 0.6
@@ -97,7 +106,7 @@ final class ModelManager {
         state = .loading(0)
 
         let configuration = ModelConfiguration(
-            id: "Hskyto/lfm2.5-2.6b-toolcall-mlx-q4",
+            id: Self.modelId,
             toolCallFormat: .lfm2
         )
 
@@ -108,11 +117,40 @@ final class ModelManager {
                     @MainActor in self.state = .loading(progress.fractionCompleted)
                 }}
             state = .ready(container)
+            hasCachedWeights = true
             startMemoryMonitor()
         }
         catch {
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Reset after a failed load so the user can retry the download.
+    func retryLoad() async {
+        guard case .failed = state else { return }
+        state = .idle
+        await load()
+    }
+
+    /// Best-effort: does the LFM2 repo already exist in the Hugging Face cache?
+    private static func cachedWeightsExist() -> Bool {
+        let fm = FileManager.default
+        var bases: [URL] = []
+        if let docs = try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
+            bases.append(docs.appendingPathComponent("huggingface/models", isDirectory: true))
+        }
+        if let caches = try? fm.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: false) {
+            bases.append(caches.appendingPathComponent("huggingface/models", isDirectory: true))
+            bases.append(caches.appendingPathComponent("models", isDirectory: true))
+        }
+        for base in bases {
+            let dir = base.appendingPathComponent(modelId, isDirectory: true)
+            if let files = try? fm.contentsOfDirectory(atPath: dir.path),
+               files.contains(where: { $0.hasSuffix(".safetensors") }) {
+                return true
+            }
+        }
+        return false
     }
 
     /// Strips the <think>…</think> reasoning, keeping only the user-facing answer.
@@ -125,6 +163,8 @@ final class ModelManager {
 
     /// Answers `prompt`. In fast mode, retries once with reasoning if the quick pass fires no tool.
     func respond(to prompt: String, thinking: Bool) async -> Reply {
+        timesFM?.resetTrace()
+        timesFM?.pushStep("LFM2 reasoning", icon: "brain")
         if thinking {
             return await runModel(prompt: prompt, thinking: true)
         }
@@ -171,8 +211,12 @@ final class ModelManager {
                         promptTime: info.promptTime,
                         generateTime: info.generateTime
                     )
+                // The model chose to call a tool → run it. This is where `forecast`
+                // reaches TimesFM. Results are shown directly (no second LLM turn).
                 case .toolCall(let call):
-                    results.append(await dispatch(call))
+                    if let output = await dispatch(call, context: ToolContext(timesFM: timesFM)) {
+                        results.append(output)
+                    }
                 case .chunk(let text):
                     raw+=text
                 }

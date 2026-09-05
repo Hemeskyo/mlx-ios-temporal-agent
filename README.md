@@ -1,40 +1,115 @@
-# mlx-ios-toolcall — a fine-tuned LLM calling real Apple APIs, fully on-device
+# Temporal — an on-device forecasting agent (LFM2 orchestrates TimesFM)
 
-A native **SwiftUI iOS app** that runs a QLoRA-tuned **LFM2.5-2.6B** tool-calling model **entirely on the iPhone** via Apple's **MLX**, and turns its tool calls into **real actions** — reminders, calendar events, Maps directions, timers, messages.
+A native **SwiftUI iOS app** where a small language model **orchestrates a time-series
+foundation model as a tool**, entirely on the iPhone via Apple's **MLX**. You ask in
+plain language; the LLM decides what to forecast, pulls the data, and hands it to the
+forecaster — then answers with a chart. **No server, no API for the models.**
 
-> The payoff of a four-part **learning-in-public** journey: [build a transformer from scratch](https://github.com/Hemeskyo/miniGPT) → [QLoRA fine-tune LFM2.5 for tool-calling](https://github.com/Hemeskyo/lfm-qlora) → [merge + convert + quantize to MLX](https://github.com/Hemeskyo/lfm-mlx) → **run it in a real iOS app** (this repo).
+- **LFM2.5-2.6B** (LiquidAI) — the tool-calling orchestrator, via `mlx-swift-lm`.
+- **TimesFM-3** (Google Research) — the zero-shot forecaster, via a **native Swift/MLX
+  port I wrote**: [`TimesFM-3-MLX-Swift`](https://github.com/Hemeskyo/TimesFM-3-MLX-Swift)
+  (parity ~1e-6 vs PyTorch; loaded in `bfloat16` on-device to halve memory).
 
----
+```
+prompt → LFM2 (routing / tool call) → data provider → TimesFM (decode) → chart
+```
 
-## The goal
-
-Two things, in order:
-
-1. **Hands-on mastery** — learn on-device ML deployment by *building* it, block by block: model loading, streaming generation, tool calling, quantization trade-offs, memory management, and performance measurement.
-2. **Ship an open-source app** — grow this into a general iOS app that can **import any Hugging Face MLX model** (by repo id) and **benchmark + chat** with it, entirely on-device. The tool-calling assistant here is the first vertical slice; the model loader, streaming pipeline, live metrics, and sampling controls are the reusable foundation for a "bring your own model" app.
-
-**Roadmap toward that:** arbitrary HF model import · general chat mode · benchmark mode (tok/s + memory across models) · on-device model management (download / delete) · the tool-vs-chat dual behavior.
+> The payoff of a **learning-in-public** journey:
+> [transformer from scratch](https://github.com/Hemeskyo/miniGPT) →
+> [QLoRA fine-tune LFM2 for tool-calling](https://github.com/Hemeskyo/lfm-qlora) →
+> [merge + convert + quantize to MLX](https://github.com/Hemeskyo/lfm-mlx) →
+> [port TimesFM-3 to Swift/MLX](https://github.com/Hemeskyo/TimesFM-3-MLX-Swift) →
+> **run both, hand in hand, in a real iOS app** (this repo).
 
 ---
 
 ## What it does
 
-Type a request. The model runs on-device and either **calls a tool** (and the app executes it against a real Apple framework) or **answers directly** in chat.
+**Forecasting** is the headline. Ask for a prediction and the LLM routes it to the right
+tool + data source, then TimesFM forecasts the series (median + p10–p90 band):
 
-| You say | What happens |
-|---|---|
-| "Remind me to call Dad at 7pm" | Creates a real **Reminder** at 19:00 (EventKit) |
-| "Schedule a dentist appointment at 10am for 60 min" | Adds a real **Calendar** event (EventKit) |
-| "Give me directions to the airport" | Opens **Apple Maps** with the route |
-| "Set a timer for 15 minutes" | Schedules a **local notification** alarm |
-| "Text Sarah I'll be late" | Opens **Messages** prefilled |
-| "What is 18 × 36?" | Just **answers** — no tool |
+| You say | Data source | On-device? |
+|---|---|---|
+| "Predict my steps for the next 7 days" | Apple Health (steps) | ✅ private, local |
+| "Predict my active energy / distance / photos" | Apple Health · Photos | ✅ private, local |
+| "Predict public interest in Artificial Intelligence" | Wikipedia pageviews | inference local, data from the web |
 
-It also shows a **live telemetry panel** — prefill/decode tok/s, token counts, and a **rolling memory graph** — plus a Settings sheet with sampling controls and **device-aware memory management** (cache limit, auto-clear, and a recommended size based on the device's actual headroom).
+The same agent still performs **real actions** when a request maps to one — reminders,
+calendar events, Maps directions, timers, messages (EventKit / MapKit / …) — or just
+**answers in chat** for anything else.
+
+A live **PIPELINE** panel makes the orchestration visible as it runs
+(`LFM2 reasoning → tool call → read source → TimesFM decode → done`), alongside a
+telemetry panel (prefill/decode tok/s + a rolling memory graph).
+
+---
+
+## How it works
+
+```
+user text
+   ▼
+LFM2  (mlx-swift-lm, tool-calling)
+   ├─ forecast(metric)      → HealthKit / Photos → series ─┐
+   ├─ forecast_web(topic)   → Wikipedia pageviews → series ─┤→ TimesFM (Swift/MLX port) → chart
+   ├─ create_reminder / …   → real Apple API                │
+   └─ (no tool)             → chat answer                    │
+                                                    median + p10–p90 band
+```
+
+- **Routing.** One system prompt + a tool registry; the LLM emits a typed `ToolCall`
+  (`toolCallFormat: .lfm2`), and a `dispatch` router runs the matching handler.
+- **Forecast tools.** `forecast` reads an on-device metric (HealthKit / Photos);
+  `forecast_web` resolves a subject to a canonical Wikipedia article and pulls its daily
+  pageviews. Both feed the same `TimesFM3Forecaster.predict`.
+- **The forecaster.** My Swift/MLX port of TimesFM-3, loaded in `bfloat16`
+  (`ModelConfig(precision: .bfloat16)`) — ~650 MB resident instead of ~1.3 GB.
+- **Two-model memory budget.** Onboarding downloads both models once; later launches
+  show a "Warming up models" splash and load from cache. MLX's GPU cache is cleared
+  after each run to stay under the jetsam ceiling.
+
+Measured on an **iPhone 15 Plus (6 GB)**: ~**120 tok/s prefill**, ~**28 tok/s decode**,
+a forecast in a few seconds, both models resident.
+
+---
+
+## Models
+
+- **[`Hskyto/lfm2.5-2.6b-toolcall-mlx-q4`](https://huggingface.co/Hskyto/lfm2.5-2.6b-toolcall-mlx-q4)**
+  — LiquidAI **LFM2.5-2.6B**, 4-bit MLX, QLoRA-tuned for tool-calling on
+  [`Salesforce/xlam-function-calling-60k`](https://github.com/Hemeskyo/lfm-qlora).
+- **TimesFM-3** (Google Research), 330M — run through
+  [`TimesFM-3-MLX-Swift`](https://github.com/Hemeskyo/TimesFM-3-MLX-Swift), a from-scratch
+  Swift/MLX port (multivariate targets, covariates, arbitrary context; validated to ~1e-6).
+
+Weights download from Hugging Face on first launch and are cached on-device.
+
+---
+
+## Honest limits
+
+- **Forecasting needs structure.** TimesFM works on series with memory — trend,
+  seasonality, autocorrelation. It captures the *trend* of Wikipedia interest, not the
+  unpredictable **viral spikes** (attention is largely exogenous), and it cannot predict
+  genuinely random processes (lotteries, markets).
+- **On-device vs web.** All model inference is local. Health/Photos forecasts are fully
+  on-device and private; the Wikipedia forecast fetches public data over the network.
+- **bf16 trade-off.** The default `float32` port keeps ~1e-6 parity; this app opts into
+  `bfloat16` for memory, at ~1% deviation — negligible against a forecast's own p10–p90
+  band, and the price of running two models on a phone without crashing.
 
 ---
 
 ## Screenshots
+
+<p align="center">
+  <img src="assets/forecast-wikipedia.png" width="45%" alt="Forecasting public interest from Wikipedia pageviews" />
+  &nbsp;&nbsp;
+  <img src="assets/forecast-photos.png" width="45%" alt="Forecasting on-device personal data" />
+</p>
+<p align="center">
+  <sub><b>Left</b> — predicting public interest in a subject from Wikipedia pageviews &nbsp;·&nbsp; <b>Right</b> — forecasting on-device personal data (Apple Health / Photos), 100% local</sub>
+</p>
 
 <p align="center">
   <img src="assets/tool-call.png" width="31%" alt="Tool call → real Reminder" />
@@ -43,61 +118,9 @@ It also shows a **live telemetry panel** — prefill/decode tok/s, token counts,
   &nbsp;&nbsp;
   <img src="assets/settings.png" width="31%" alt="Sampling params + memory controls" />
 </p>
-
 <p align="center">
-  <sub><b>Left</b> — "call Dad at 7pm" → a real Reminder at 19:00, ~4s on-device &nbsp;·&nbsp; <b>Center</b> — general chat with live prefill/decode metrics &nbsp;·&nbsp; <b>Right</b> — sampling params + device-aware memory controls</sub>
+  <sub>The same agent also drives real Apple actions and general chat, with live on-device telemetry.</sub>
 </p>
-
----
-
-## Why this is the interesting part
-
-Training a model is one thing; making it *usable on a phone* is another. This app is where the on-device constraints get real:
-
-- **Memory.** The 16-bit and 8-bit builds OOM-crash on a 6 GB iPhone (jetsam). This ships the **4-bit** build (~1.5 GB) and actively manages MLX's GPU buffer cache to stay alive across prompts.
-- **Latency.** Decode is the slow phase (one token at a time). The app adds a **reasoning toggle** that skips LFM2's chain-of-thought for faster tool calls.
-- **Reliability.** Skipping reasoning sometimes makes the model *chat* instead of *act* — so the app **falls back to a reasoning pass** when the fast pass doesn't produce a tool call.
-
----
-
-## The model
-
-- **[`Hskyto/lfm2.5-2.6b-toolcall-mlx-q4`](https://huggingface.co/Hskyto/lfm2.5-2.6b-toolcall-mlx-q4)** — 4-bit MLX, ~1.5 GB, downloaded on first launch and cached on-device.
-- Base: **LiquidAI/LFM2.5-2.6B** (hybrid conv + attention — small KV-cache, ideal for on-device).
-- Fine-tuned with a **QLoRA adapter** on **Salesforce/xlam-function-calling-60k** ([training repo](https://github.com/Hemeskyo/lfm-qlora)).
-- Emits tool calls in LFM2's Pythonic format, parsed for free by `mlx-swift-lm`'s `toolCallFormat: .lfm2`.
-
----
-
-## How it works
-
-```
-user text
-   │  UserInput(chat: [.system(prompt), .user(text)], tools: schemas,
-   │            additionalContext: ["enable_thinking": …])
-   ▼
-mlx-swift-lm  →  chat template (+ tools injected)  →  MLX generate (streaming)
-   │
-   ├─ .toolCall  → dispatch(name, args)  → real Apple API (EventKit / MapKit / …)
-   ├─ .chunk     → conversational text (chat answer)
-   └─ .info      → GenerateCompletionInfo → live perf metrics
-```
-
-| Concept | What it does | Why it matters |
-|---|---|---|
-| **`mlx-swift-lm` + MLX** | Runs the LFM2 model on the Apple GPU, in unified memory | No server, no CUDA — the model runs *on the phone* |
-| **`toolCallFormat: .lfm2`** | Library parses `<|tool_call_start|>[…]` into a typed `ToolCall` | Tool-call parsing for free — the scary part, solved |
-| **Tool registry + `dispatch`** | One list of tool schemas + a name→handler router | Adding a tool = one schema + one `case` |
-| **`enable_thinking` toggle** | Custom chat-template guard skips the `<think>` block | Fewer decode tokens → faster (my main speed lever) |
-| **Try-fast, fall back** | No-think first; retry with reasoning if no tool fired | Speed on easy prompts, reliability on hard ones |
-| **`Reply { .tool / .chat }`** | Model either acts or answers; a system prompt routes it | One assistant that does tools *and* chat |
-| **MLX memory controls** | Cache limit + auto-clear + manual "clear now", exposed in Settings | Tunable defense against jetsam OOM (staircase → sawtooth) |
-| **Live memory monitor** | 2 Hz sampler → rolling MB sparkline in the home panel | Watch memory breathe during generation, in real time |
-| **Device-aware recommendation** | `os_proc_available_memory()` + total RAM → suggested cache size | "Use recommended" adapts to the actual device's headroom |
-| **Live metrics** | Reads the `.info` event (prefill/decode tok/s, tokens) | See on-device cost in real time |
-| **Params sheet** | temperature / top-p / top-k / max-tokens sliders | Live sampling control, bound via `@Bindable` |
-
-Measured on an **iPhone 15 Plus (6 GB)**: ~**120 tok/s prefill**, ~**28 tok/s decode**, ~1.5 GB resident.
 
 ---
 
@@ -106,14 +129,24 @@ Measured on an **iPhone 15 Plus (6 GB)**: ~**120 tok/s prefill**, ~**28 tok/s de
 ```
 mlx_ios_toolcallApp.swift    # @main entry point
 Inference/
-  ModelManager.swift         # the engine: load, generation, fallback, Reply, metrics, memory monitor
+  ModelManager.swift         # LFM2: load, streaming generation, tool/chat routing, metrics, memory
   Metrics.swift              # one run's performance numbers
+Forecasting/
+  TimesFMManager.swift       # forecast orchestration + pipeline trace; routes metric/web
+  TimesFMEngine.swift        # calls the TimesFMMLX Swift port (bf16), builds the quantile band
+  ForecastModels.swift       # TimeSeriesPoint / ForecastPoint / ForecastResult
+  HealthDataProvider.swift   # HealthKit: daily steps / active energy / distance
+  PhotoDataProvider.swift    # PhotoKit: daily photo counts
+  WikipediaDataProvider.swift# resolves a subject → article, fetches daily pageviews
+  DemoForecastEngine.swift   # synthetic series (previews / fallback)
 Tools/
-  Tools.swift                # tool definitions + schema registry + dispatch router
-  AppleEvents.swift          # EventKit: real reminders + calendar events
-  DeviceActions.swift        # Maps (URL), timer (UNUserNotifications), Messages (sms:)
+  Tools.swift                # tool schemas + dispatch router (forecast, forecast_web, actions)
+  AppleEvents.swift          # EventKit: reminders + calendar
+  DeviceActions.swift        # Maps, timers, Messages
 Views/
-  ContentView.swift          # state-machine screens, sticky telemetry panel, keyboard handling
+  OnboardingView.swift       # mandatory first-run: download both models
+  ContentView.swift          # chat, suggestion cards, pipeline trace, forecast chart, telemetry
+  ForecastView.swift         # history + median + p10–p90 band chart
   PerformancePanel.swift     # speed bars + live memory sparkline
   SettingsView.swift         # sampling params + memory controls
 Support/
@@ -124,21 +157,21 @@ Support/
 
 ## Running it
 
-Needs **Xcode** and an **Apple-silicon iPhone** (MLX doesn't run on the Simulator — use a real device or "My Mac (Designed for iPad)").
+Needs **Xcode** and a **real Apple-silicon iPhone** (MLX does not run on the Simulator;
+Health data also only exists on a device).
 
 1. Open the project in Xcode.
-2. It uses **`mlx-swift-lm`** + **`swift-transformers`** via Swift Package Manager (already resolved in `Package.resolved`).
-3. Add the privacy usage strings in the target's **Info** tab: *Reminders Full Access* and *Calendars Full Access*.
-4. Run on a device. First launch **downloads the ~1.5 GB model** once, then caches it.
-5. Tap **Load model** → ask something.
+2. Swift Package Manager pulls **`mlx-swift-lm`**, **`swift-transformers`**, and
+   **`TimesFM-3-MLX-Swift`** (the forecaster).
+3. In the target's **Signing & Capabilities**, add **HealthKit**; in **Info**, add the
+   usage strings for **Health**, **Photo Library**, **Reminders**, and **Calendars**.
+4. Run on a device. First launch downloads both models once (~2 GB total), then caches
+   them; later launches load from cache.
+5. Tap a suggestion card, or ask for a forecast.
 
 ---
 
-## What I learned
+## License
 
-- **On-device is a memory game.** Jetsam kills you long before you run out of RAM; picking q4, capping MLX's GPU cache, and clearing it per generation is what makes it survivable. `os_proc_available_memory()` tells you the *real* per-app ceiling, so the recommended cache size adapts to the device instead of guessing.
-- **The chat template is a lever, not a fixed thing.** Adding an `enable_thinking` guard to LFM2's template — and passing it through `additionalContext` — turned reasoning into a runtime speed dial.
-- **Prefill vs decode.** Reading the `.info` metrics made the cost structure obvious: decode (one token at a time) dominates, and cutting reasoning tokens is the biggest win.
-- **Speed and reliability trade off.** No-think is faster but sometimes chats instead of acting — the try-fast/fallback pattern buys both.
-- **A fine-tuned model is only half the product.** Turning `create_reminder(text=…, time=…)` into an actual reminder is EventKit, permissions, and error handling — the "boring" half that makes it real.
-- **The full loop, end to end:** from a transformer → a QLoRA tool-caller → an MLX quantization → a shippable iOS app running it on a phone.
+App code: **MIT**. Model weights are distributed by their respective authors
+(LiquidAI, Google) under their own licenses and are not included here.

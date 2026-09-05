@@ -92,6 +92,39 @@ let mapsTool = Tool<MapsInput, MapsOutput>(
     ]
 ) { input in MapsOutput(ok: true) }
 
+/// Forecast a personal time-series metric (handled in dispatch with app context).
+struct ForecastToolInput: Codable {
+    let metric: String
+    let horizon: Int?
+}
+struct ForecastToolOutput: Codable { let ok: Bool }
+
+let forecastTool = Tool<ForecastToolInput, ForecastToolOutput>(
+    name: "forecast",
+    description: "Forecast a personal time-series metric over a horizon. Use when the user asks to predict or forecast one of the supported metrics.",
+    parameters: [
+        .required("metric", type: .string, description: "One of: steps, active energy, distance, photos."),
+        .optional("horizon", type: .int, description: "How many future points to predict (default 7)."),
+    ]
+) { _ in ForecastToolOutput(ok: true) }   // real work happens in dispatch (like the other tools)
+
+
+/// Forecast public interest in a topic from its Wikipedia pageviews (web data).
+struct ForecastWebInput: Codable {
+    let topic: String
+    let horizon: Int?
+}
+struct ForecastWebOutput: Codable { let ok: Bool }
+
+let forecastWebTool = Tool<ForecastWebInput, ForecastWebOutput>(
+    name: "forecast_web",
+    description: "Forecast public interest in a topic using its daily Wikipedia pageviews. Use when the user asks to predict the interest, popularity, or trend of a public subject (a person, product, company, event).",
+    parameters: [
+        .required("topic", type: .string, description: "The Wikipedia article title, e.g. \"ChatGPT\"."),
+        .optional("horizon", type: .int, description: "How many future days to predict (default 30)."),
+    ]
+) { _ in ForecastWebOutput(ok: true) }
+
 
 // MARK: - Registry & dispatch
 
@@ -102,10 +135,19 @@ let allToolSchemas: [ToolSpec] = [
     messageTool.schema,
     timerTool.schema,
     mapsTool.schema,
+    forecastTool.schema,
+    forecastWebTool.schema,
 ]
 
-/// Routes a parsed tool call to its handler and returns a readable result.
-func dispatch(_ call: ToolCall) async -> String {
+// Dependencies the app injects into tool handlers at call time (e.g. the TimesFM
+// engine for the `forecast` tool). Pure tools like reminders simply ignore it.
+struct ToolContext {
+    let timesFM: TimesFMManager?
+}
+
+/// The bridge from the LLM to the app: the model emits a tool call, this routes it
+/// to the matching handler and returns a readable string (shown directly in chat).
+func dispatch(_ call: ToolCall, context: ToolContext) async -> String? {
     let args = call.function.arguments
     switch call.function.name {
 
@@ -136,7 +178,21 @@ func dispatch(_ call: ToolCall) async -> String {
         let destination = args["destination"]?.displayString ?? ""
         return await DeviceActions.openMaps(destination: destination)
 
+    case "forecast":
+           let metric = args["metric"]?.displayString ?? "steps"
+           let horizon = args["horizon"].flatMap { Int($0.displayString) } ?? 7
+           guard let timesFM = context.timesFM else { return "Forecasting is unavailable." }
+           await timesFM.pushStep("Tool call · forecast(\(metric))", icon: "wrench.and.screwdriver.fill")
+        return await timesFM.runForecast(metric: metric, horizon: horizon)
+
+    case "forecast_web":
+        let topic = args["topic"]?.displayString ?? ""
+        let horizon = args["horizon"].flatMap { Int($0.displayString) } ?? 30
+        guard let timesFM = context.timesFM else { return "Forecasting is unavailable." }
+        await timesFM.pushStep("Tool call · forecast_web(\(topic))", icon: "globe")
+        return await timesFM.runWebForecast(topic: topic, horizon: horizon)
+        
     default:
-        return "Unknown tool: \(call.function.name)"
+        return nil   // hallucinated / unknown tool → ignore it, fall back to a chat answer
     }
 }
