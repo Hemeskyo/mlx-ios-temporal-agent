@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// Root view: draws a screen per model state and sends prompts to the model.
 struct ContentView: View {
@@ -15,7 +16,10 @@ struct ContentView: View {
     @State private var thinkingEnabled = false
     @State private var showSettings = false
     @State private var showPerformance = false
+    @State private var isBenchmarking = false
+    @State private var spinnerAngle = 0.0
     @AppStorage("didCompleteOnboarding") private var didOnboard = false
+    @AppStorage("selectedModel") private var selectedModel: LLMModel = .lfm2Base
     @FocusState private var promptFocused: Bool
     
     private let demoForecast = DemoForecastEngine.makeForecast()
@@ -49,13 +53,26 @@ struct ContentView: View {
         return false
     }
 
+    private var failureMessage: String? {
+        if case .failed(let m) = manager.state { return m }
+        if case .failed(let m) = timesFM.state { return m }
+        return nil
+    }
+
     /// Returning-launch splash: load both cached models into memory, then the app opens.
     private var warmingUpView: some View {
         VStack(spacing: 16) {
+            // Indeterminate on purpose: the model download reports no reliable %,
+            // so a determinate bar would sit at 0% and read as "stuck".
             ProgressView().controlSize(.large)
             Text("Warming up models").font(.headline)
+            Text("First run of a model downloads it once (up to ~1.5 GB), then loads from cache. This can take a few minutes — keep the app open, prefer Wi-Fi.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
         .task { await warmUp() }
     }
 
@@ -64,8 +81,15 @@ struct ContentView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.largeTitle).foregroundStyle(.orange)
             Text("Couldn't warm up the models").font(.headline)
+            if let msg = failureMessage {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .textSelection(.enabled)
+            }
             Button("Retry") {
-                Task { await timesFM.retryLoad(); await manager.retryLoad() }
+                Task { await timesFM.retryLoad(); await manager.retryLoad(selectedModel) }
             }
             .buttonStyle(.borderedProminent)
         }
@@ -75,8 +99,9 @@ struct ContentView: View {
 
     /// Load both cached models sequentially (bounds peak RAM vs. loading in parallel).
     private func warmUp() async {
+        guard !isBenchmarking else { return }   // the benchmark drives the manager itself
         await timesFM.load()
-        await manager.load()
+        await manager.load(selectedModel)
     }
 
     var body: some View {
@@ -105,12 +130,33 @@ struct ContentView: View {
                             Image(systemName: "slider.horizontal.3")
                         }
                     }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { isBenchmarking = true } label: {
+                            Image(systemName: "speedometer")
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView(manager: manager) }
             .task { manager.timesFM = timesFM }
             .onChange(of: bothReady) { _, ready in
                 if ready { didOnboard = true }   // never show onboarding again once both loaded
+            }
+            .onChange(of: selectedModel) { _, _ in
+                // Switch model → drop the old one; the warm-up splash reloads the new one.
+                result = ""
+                timesFM.clearForecast()
+                manager.unload()
+            }
+            .fullScreenCover(isPresented: $isBenchmarking) {
+                BenchmarkView(manager: manager) { isBenchmarking = false }
+            }
+            .onChange(of: isBenchmarking) { _, running in
+                // The benchmark leaves the manager unloaded → reload the user's model on return.
+                if !running { Task { await manager.load(selectedModel) } }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                manager.clearCacheNow()
             }
         }
     }
@@ -154,14 +200,51 @@ struct ContentView: View {
     
     // MARK: Ready
     
+    /// Beautiful in-progress loader shown in place of the cards while a prompt runs.
+    private var generatingView: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .stroke(
+                        AngularGradient(colors: [.blue, .purple, .blue.opacity(0.15)], center: .center),
+                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                    )
+                    .frame(width: 66, height: 66)
+                    .rotationEffect(.degrees(spinnerAngle))
+                Image(systemName: "sparkles")
+                    .font(.title2)
+                    .foregroundStyle(.purple)
+            }
+            Text(thinkingEnabled ? "Reasoning…" : "Thinking…")
+                .font(.headline)
+            if let name = manager.currentModel?.displayName {
+                Text("On-device · \(name)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 340)
+        .onAppear {
+            spinnerAngle = 0
+            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
+                spinnerAngle = 360
+            }
+        }
+    }
+
     private var readyView: some View {
         ScrollView {
             VStack(spacing: 16) {
-                if !timesFM.trace.isEmpty { pipelineCard }
-                if let forecast = timesFM.latestForecast { ForecastView(result: forecast) }
-                if !result.isEmpty { resultCard }
-                suggestionCards
-                performanceSection
+                if isGenerating {
+                    generatingView
+                } else {
+                    if !timesFM.trace.isEmpty { pipelineCard }
+                    if let forecast = timesFM.latestForecast { ForecastView(result: forecast) }
+                    if !result.isEmpty { resultCard }
+                    suggestionCards
+                    performanceSection
+                }
             }
             .padding()
         }
@@ -418,7 +501,7 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
             
             Button {
-                Task { await manager.load() }
+                Task { await manager.load(.lfm2) }
             } label: {
                 modelActionLabel("Download LFM", systemImage: "arrow.down.circle.fill", detail: "~1.5 GB")
             }

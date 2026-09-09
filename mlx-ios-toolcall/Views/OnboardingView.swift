@@ -57,7 +57,7 @@ struct OnboardingView: View {
             Text("Two models, on-device via MLX (Apple Silicon / Metal). No server, no API.")
                 .foregroundStyle(.secondary)
 
-            specRow("LFM2-2.5-2.6B", "LiquidAI · 4-bit · tool-calling FT · the orchestrator")
+            specRow("LFM2.5-2.6B", "LiquidAI · 4-bit · base · general chat")
             specRow("TimesFM-3.0", "Google · native Swift/MLX port · zero-shot forecaster")
 
             Text("The LLM calls the forecaster as a tool. ~2 GB one-time (Hugging Face), then fully offline.")
@@ -86,12 +86,12 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 18) {
             stepHeader(2, "LFM2")
             specCard(
-                id: "Hskyto/lfm2.5-2.6b-toolcall-mlx-q4",
+                id: "LiquidAI/LFM2.5-2.6B-MLX-4bit",
                 lines: [
                     "4-bit MLX · ~1.5 GB",
-                    "LFM2-2.6B fine-tuned for native tool-calling.",
+                    "LFM2.5-2.6B base (LiquidAI, official).",
                     "Runs via mlx-swift-lm.",
-                    "Handles the chat and dispatches TimesFM as a tool.",
+                    "General chat. Switch to the tool-calling model in Settings for forecasting.",
                 ]
             )
             lfmAction
@@ -161,7 +161,7 @@ struct OnboardingView: View {
     @ViewBuilder private var lfmAction: some View {
         switch manager.state {
         case .idle:
-            Button { Task { await manager.load() } } label: {
+            Button { Task { await manager.load(.lfm2Base) } } label: {
                 actionLabel(manager.hasCachedWeights ? "Load from cache" : "Download weights",
                             systemImage: manager.hasCachedWeights ? "memorychip.fill" : "arrow.down.circle.fill",
                             detail: manager.hasCachedWeights ? "cached" : "1.5 GB")
@@ -172,7 +172,7 @@ struct OnboardingView: View {
         case .ready:
             readyRow("LFM2 resident on device")
         case .failed(let message):
-            failedRow(message) { Task { await manager.retryLoad() } }
+            failedRow(message) { Task { await manager.retryLoad(.lfm2Base) } }
         }
     }
 
